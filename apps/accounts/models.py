@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
+from apps.common.models import BaseModel   
 
 from .managers import UserManager
 
@@ -45,3 +46,39 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.get_full_name() or self.phone_number
+
+
+# ... کلاس User همون قبلیه ...
+
+class BuildingMembership(BaseModel):
+    """
+    نقش یک کاربر در یک ساختمان مشخص.
+    عمداً روی خود User نگذاشتیم چون یک نفر می‌تونه هم‌زمان:
+    - در ساختمان A مدیر باشه
+    - در ساختمان B فقط مالک/ساکن باشه
+    """
+    class Role(models.TextChoices):
+        MANAGER = 'manager', 'مدیر ساختمان'
+        BOARD_MEMBER = 'board_member', 'عضو هیئت مدیره'
+        OWNER = 'owner', 'مالک'
+        TENANT = 'tenant', 'مستاجر'
+        STAFF = 'staff', 'کارمند / سرایدار'
+
+    user = models.ForeignKey(
+        'accounts.User', on_delete=models.CASCADE,
+        related_name='memberships', verbose_name='کاربر'
+    )
+    building = models.ForeignKey(
+        'buildings.Building', on_delete=models.CASCADE,
+        related_name='memberships', verbose_name='ساختمان'
+    )
+    role = models.CharField(max_length=20, choices=Role.choices, verbose_name='نقش')
+    is_active = models.BooleanField(default=True, verbose_name='فعال')
+
+    class Meta:
+        unique_together = ('user', 'building', 'role')
+        verbose_name = 'عضویت در ساختمان'
+        verbose_name_plural = 'عضویت‌ها در ساختمان'
+
+    def __str__(self):
+        return f"{self.user} - {self.building} - {self.get_role_display()}"
